@@ -10,7 +10,7 @@
     "test": "node --test",
     "smoke:codex": "node scripts/codex-app-server-smoke.mjs",
     "smoke:ui": "electron . --smoke",
-    "validate:skill": "python \"C:/Users/Flechazo233/.codex/skills/.system/skill-creator/scripts/quick_validate.py\" skills/design-personal-agent-team"
+    "validate:skill": "node scripts/validate-skill.mjs skills/design-personal-agent-team"
   },
   "devDependencies": {
     "electron": "^38.1.2"
