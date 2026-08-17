@@ -1,0 +1,18 @@
+{
+  "name": "massive-agent-desk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first desktop control plane for coordinating Codex agents.",
+  "type": "module",
+  "main": "src/main/main.mjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "smoke:codex": "node scripts/codex-app-server-smoke.mjs",
+    "smoke:ui": "electron . --smoke",
+    "validate:skill": "python \"C:/Users/Flechazo233/.codex/skills/.system/skill-creator/scripts/quick_validate.py\" skills/design-personal-agent-team"
+  },
+  "devDependencies": {
+    "electron": "^38.1.2"
+  }
+}

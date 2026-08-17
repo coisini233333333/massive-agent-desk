@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design Personal Agent Team"
+  short_description: "Build a durable Codex multi-agent setup"
+  default_prompt: "Use $design-personal-agent-team to audit my recent work and install a tailored Codex agent team."

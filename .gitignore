@@ -1,0 +1,15 @@
+node_modules/
+.pnpm-store/
+.electron-cache/
+.skill-validator-deps/
+electron-v*-win32-x64.zip
+dist/
+release/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+.massive-agent/
+schemas/

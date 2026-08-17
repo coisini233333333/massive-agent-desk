@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Massive Agent Desk</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="noise"></div>
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand-lockup">
+          <div class="brand-mark">M</div>
+          <div>
+            <div class="eyebrow">LOCAL AGENT CONTROL PLANE</div>
+            <h1>Massive Agent <span>Desk</span></h1>
+          </div>
+        </div>
+        <div class="connection" id="connectionState">
+          <span class="pulse"></span>
+          <div><b>Codex 未连接</b><small>等待 app-server</small></div>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div>
+          <p class="kicker">编排，而不是堆叠</p>
+          <h2>把一项复杂工作拆成<br /><em>可验证的并行航道。</em></h2>
+        </div>
+        <p class="hero-copy">每个 Agent 拥有独立角色、Codex 模型与推理强度。首版通过本地登录态连接官方 app-server，不存储 API key。</p>
+      </section>
+
+      <section class="control-panel">
+        <div class="field workspace-field">
+          <label>工作目录</label>
+          <div class="input-row">
+            <input id="workspace" placeholder="选择 Agent 共同工作的项目目录" />
+            <button class="ghost-button" id="pickWorkspace">浏览</button>
+          </div>
+        </div>
+        <div class="field count-field">
+          <label>Agent 数量</label>
+          <div class="stepper">
+            <button id="minusCount" aria-label="减少 Agent">−</button>
+            <strong id="agentCount">4</strong>
+            <button id="plusCount" aria-label="增加 Agent">＋</button>
+          </div>
+        </div>
+        <div class="field task-field">
+          <label>总任务</label>
+          <textarea id="task" rows="3" placeholder="描述主目标；各 Agent 会按角色接收同一目标和独立交付契约。"></textarea>
+        </div>
+        <button class="launch-button" id="launchRun">
+          <span>启动并行任务</span>
+          <i>↗</i>
+        </button>
+      </section>
+
+      <section class="section-head">
+        <div>
+          <p class="kicker">TEAM CONFIGURATION</p>
+          <h3>Agent 舰队</h3>
+        </div>
+        <p>模型列表来自当前 Codex 运行时；角色预设可以在每个任务前重新分配。</p>
+      </section>
+
+      <section class="agent-grid" id="agentGrid"></section>
+
+      <footer>
+        <span>Massive Agent Desk · v0.1</span>
+        <span id="footerStatus">本地配置尚未保存</span>
+      </footer>
+    </main>
+    <template id="agentCardTemplate">
+      <article class="agent-card">
+        <div class="card-glow"></div>
+        <div class="card-top">
+          <span class="agent-index"></span>
+          <span class="role-badge"></span>
+          <span class="agent-status">READY</span>
+        </div>
+        <select class="role-select" aria-label="Agent 角色"></select>
+        <p class="role-summary"></p>
+        <div class="selectors">
+          <label>MODEL<select class="model-select"></select></label>
+          <label>REASONING<select class="effort-select"></select></label>
+        </div>
+        <div class="output-wrap">
+          <div class="output-head"><span>LIVE OUTPUT</span><button class="stop-button" disabled>STOP</button></div>
+          <pre class="agent-output">等待任务…</pre>
+        </div>
+      </article>
+    </template>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
