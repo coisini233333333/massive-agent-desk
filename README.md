@@ -1,5 +1,7 @@
 # Massive Agent Desk
 
+> 桥接施工分支新增了已有 Codex 会话绑定、持久草案、独立原文审阅窗口与部分审批入口。运行 `npm start` 后默认进入已有会话页，原有新建 Agent 编排保留在第二个页签。当前 Antigravity 尚未接入，也没有可交付 APK；逐项验证与限制见 [实施记录](./docs/p0-implementation-status.md)。
+
 一个本地优先的桌面级多 Agent 调度器。首版面向 Codex：从当前登录态启动官方 `codex app-server`，动态读取可用模型，为每个 Agent 配置角色、模型与推理强度，并把同一复杂任务分发到多个独立线程。
 
 本仓库同时包含一套根据近期实际工作生成的全局 Codex 配置，以及可复用的 `design-personal-agent-team` Skill。

@@ -10,7 +10,10 @@
     "test": "node --test",
     "smoke:codex": "node scripts/codex-app-server-smoke.mjs",
     "smoke:bridge-codex": "node scripts/codex-thread-resume-smoke.mjs",
+    "smoke:bridge-host": "node scripts/bridge-host-smoke.mjs",
     "smoke:ui": "electron . --smoke",
+    "smoke:ui:bridge": "electron . --smoke --bridge-fixture",
+    "smoke:review": "electron scripts/review-window-smoke.mjs",
     "validate:skill": "node scripts/validate-skill.mjs skills/design-personal-agent-team"
   },
   "devDependencies": {

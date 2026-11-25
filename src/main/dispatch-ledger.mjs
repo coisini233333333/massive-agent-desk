@@ -42,7 +42,7 @@ export class DispatchLedger {
 
   close() { this.db.close(); }
 
-  saveDraft({ projectId, draftId = randomUUID(), targetThreadId, text }) {
+  saveDraft({ projectId, draftId = randomUUID(), targetThreadId, text }, { onPersist = () => {} } = {}) {
     assertText(projectId, 'projectId');
     assertText(draftId, 'draftId');
     assertText(targetThreadId, 'targetThreadId');
@@ -69,8 +69,12 @@ export class DispatchLedger {
       );
       this.db.prepare(`INSERT INTO draft_revisions(draft_id, revision, project_id, target_thread_id, text, text_hash, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)`).run(draftId, revision, projectId, targetThreadId, text, textHash, now);
+      const draft = { draftId, projectId, targetThreadId, revision, textHash, text };
+      // Trusted host hook: write companion records on this same connection
+      // before COMMIT. It must not perform network or other external effects.
+      onPersist(draft);
       this.db.exec('COMMIT');
-      return { draftId, projectId, targetThreadId, revision, textHash, text };
+      return draft;
     } catch (error) {
       this.#rollback();
       throw error;
@@ -147,13 +151,14 @@ export class DispatchLedger {
 
   /** Claims one queued record. The caller must persist delivery evidence with
    * markDelivered or markUnknown; a process restart converts sending to unknown. */
-  claimNextForSend() {
+  claimNextForSend({ commandId = null } = {}) {
     this.db.exec('BEGIN IMMEDIATE');
     try {
       const outbox = this.db.prepare(`SELECT o.outbox_id, o.command_id, o.draft_id, o.revision,
         d.project_id, d.target_thread_id, d.text, d.text_hash
         FROM outbox o JOIN draft_revisions d ON d.draft_id = o.draft_id AND d.revision = o.revision
-        WHERE o.state = 'queued' ORDER BY o.created_at, o.outbox_id LIMIT 1`).get();
+        WHERE o.state = 'queued' AND (? IS NULL OR o.command_id = ?)
+        ORDER BY o.created_at, o.outbox_id LIMIT 1`).get(commandId, commandId);
       if (!outbox) { this.db.exec('COMMIT'); return null; }
       const now = new Date().toISOString();
       this.db.prepare("UPDATE outbox SET state = 'sending', updated_at = ? WHERE outbox_id = ? AND state = 'queued'").run(now, outbox.outbox_id);
@@ -180,6 +185,20 @@ export class DispatchLedger {
     assertText(commandId, 'commandId');
     assertText(detail, 'detail');
     return this.#setOutcome(commandId, 'unknown', detail);
+  }
+
+  // Internal host operation only for a transport's proven pre-send rejection;
+  // never accepts unknown or delivered commands and is not exposed over IPC.
+  requeueUnsent(commandId) {
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const command = this.getCommand(commandId);
+      if (command?.state !== 'sending') throw new Error('只有确定未发送的 sending 命令可以退回队列。');
+      this.db.prepare("UPDATE outbox SET state='queued', outcome_detail=NULL, updated_at=? WHERE command_id=?").run(new Date().toISOString(), commandId);
+      this.db.prepare("UPDATE dispatch_commands SET state='queued' WHERE command_id=?").run(commandId);
+      this.db.exec('COMMIT');
+      return this.getCommand(commandId);
+    } catch (error) { this.#rollback(); throw error; }
   }
 
   /**

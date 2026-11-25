@@ -1,0 +1,17 @@
+{
+  "threadId": "01a213d1-a361-7430-9149-b3e69d2e096b",
+  "commandId": "d0840f36-754f-44fb-bfdf-53d00c191b08",
+  "turnId": "01a213e1-838f-78b0-84b5-821a23c51a8c",
+  "result": "passed",
+  "checks": [
+    "durable exact draft",
+    "desktop controller to real Codex",
+    "exact assistant reply",
+    "duplicate returns original receipt"
+  ],
+  "notVerified": [
+    "human native-dialog interaction (test callback only)",
+    "Antigravity",
+    "APK"
+  ]
+}

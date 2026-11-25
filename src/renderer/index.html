@@ -3,95 +3,65 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src 'none'; base-uri 'none'; form-action 'none'; connect-src 'none'" />
     <title>Massive Agent Desk</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="noise"></div>
-    <main class="shell">
-      <header class="topbar">
+    <a class="skip-link" href="#workspace">跳至主要内容</a>
+    <main class="app-shell">
+      <header class="app-header">
         <div class="brand-lockup">
-          <div class="brand-mark">M</div>
-          <div>
-            <div class="eyebrow">LOCAL AGENT CONTROL PLANE</div>
-            <h1>Massive Agent <span>Desk</span></h1>
-          </div>
+          <div class="brand-mark" aria-hidden="true">M</div>
+          <div><p class="eyebrow">LOCAL AGENT DESK</p><h1>Massive Agent Desk</h1></div>
         </div>
-        <div class="connection" id="connectionState">
-          <span class="pulse"></span>
-          <div><b>Codex 未连接</b><small>等待 app-server</small></div>
-        </div>
+        <div class="connection-wrap"><button class="connection" id="connectCodex" type="button" aria-live="polite"><span class="pulse" aria-hidden="true"></span><div><b>Codex 未连接</b><small>点击连接本地 app-server</small></div></button></div>
       </header>
 
-      <section class="hero">
-        <div>
-          <p class="kicker">编排，而不是堆叠</p>
-          <h2>把一项复杂工作拆成<br /><em>可验证的并行航道。</em></h2>
-        </div>
-        <p class="hero-copy">每个 Agent 拥有独立角色、Codex 模型与推理强度。首版通过本地登录态连接官方 app-server，不存储 API key。</p>
-      </section>
+      <nav class="mode-tabs" aria-label="工作区模式">
+        <button class="mode-tab is-active" data-mode="bridge" type="button" aria-controls="bridgeView">已有会话桥接</button>
+        <button class="mode-tab" data-mode="orchestrate" type="button" aria-controls="orchestrateView">并行编排</button>
+      </nav>
+      <section class="notice" role="status"><span class="notice-dot" aria-hidden="true"></span><p><strong>Antigravity 尚未接入。</strong>当前可安全绑定并续接本机已有 Codex 会话；发出草案前会由桌面原生确认窗口展示确切原文。</p></section>
 
-      <section class="control-panel">
-        <div class="field workspace-field">
-          <label>工作目录</label>
-          <div class="input-row">
-            <input id="workspace" placeholder="选择 Agent 共同工作的项目目录" />
-            <button class="ghost-button" id="pickWorkspace">浏览</button>
+      <section class="workspace" id="workspace">
+        <section class="bridge-view" id="bridgeView" aria-label="已有会话桥接">
+          <aside class="project-sidebar" id="projectSidebar" aria-label="已绑定项目">
+            <div class="sidebar-head"><div><p class="eyebrow">PROJECTS</p><h2>项目会话</h2></div><div class="sidebar-actions"><button class="text-button project-toggle" id="projectToggle" type="button" aria-expanded="true">收起</button><button class="icon-button" id="refreshBridge" type="button" aria-label="刷新已绑定项目">↻</button></div></div>
+            <div class="project-list" id="projectList" aria-live="polite"></div>
+            <div class="sidebar-footer"><p>每个目录只绑定一个当前会话。切换会话前，待发送和待核对的草案会被保留。</p></div>
+          </aside>
+          <div class="bridge-main">
+            <section class="binding-panel panel" aria-labelledby="bindingTitle">
+              <div class="panel-head"><div><p class="eyebrow">BIND A CONVERSATION</p><h2 id="bindingTitle">从已有 Codex 会话开始</h2></div><div class="panel-actions"><span class="status-pill" id="bindingStatus">未选择项目</span><button class="text-button" id="bindingToggle" type="button" hidden aria-expanded="false">更换/绑定其它会话</button></div></div>
+              <div id="bindingControls"><div class="directory-row"><label class="sr-only" for="bridgeWorkspace">项目目录</label><input id="bridgeWorkspace" autocomplete="off" placeholder="选择要检索的本机项目目录" /><button class="secondary-button" id="pickBridgeWorkspace" type="button">选择目录</button><button class="primary-button" id="listThreads" type="button">查找会话</button></div>
+              <p class="field-hint" id="discoveryHint">选择目录后，列表只显示该目录下可恢复的 Codex 会话。</p><div class="thread-list" id="threadList" aria-live="polite"></div><button class="text-button" id="loadMoreThreads" type="button" hidden>加载更多会话</button></div>
+            </section>
+            <section class="conversation-panel panel" aria-labelledby="conversationTitle">
+              <div class="panel-head conversation-head"><div><p class="eyebrow">BOUND HISTORY</p><h2 id="conversationTitle">选择项目以查看对话</h2><button class="text-button title-toggle" id="titleToggle" type="button" hidden aria-expanded="false">查看完整标题</button><p class="muted" id="conversationMeta">不会创建或修改任何会话。</p></div><button class="secondary-button compact" id="loadMoreHistory" type="button" hidden>更早内容</button></div>
+              <div class="timeline" id="timeline" aria-live="polite"></div>
+            </section>
+            <section class="composer-card panel" aria-labelledby="composerTitle">
+              <div class="panel-head"><div><p class="eyebrow">VERSIONED DRAFT</p><h2 id="composerTitle">准备要发送的草案</h2></div><span class="status-pill" id="draftTarget">尚未绑定目标</span></div>
+              <label class="sr-only" for="draftText">草案正文</label><textarea id="draftText" rows="5" maxlength="50000" placeholder="先选择一个已绑定项目。这里保存的是将要发送的确切原文。" disabled></textarea>
+              <div class="composer-actions"><span id="draftCount">0 / 50000</span><button class="primary-button" id="prepareDraft" type="button" disabled>保存草案版本</button></div><div class="ticket-list" id="ticketList" aria-live="polite"></div><div class="approval-list" id="approvalList" aria-live="polite"></div>
+            </section>
           </div>
-        </div>
-        <div class="field count-field">
-          <label>Agent 数量</label>
-          <div class="stepper">
-            <button id="minusCount" aria-label="减少 Agent">−</button>
-            <strong id="agentCount">4</strong>
-            <button id="plusCount" aria-label="增加 Agent">＋</button>
-          </div>
-        </div>
-        <div class="field task-field">
-          <label>总任务</label>
-          <textarea id="task" rows="3" placeholder="描述主目标；各 Agent 会按角色接收同一目标和独立交付契约。"></textarea>
-        </div>
-        <button class="launch-button" id="launchRun">
-          <span>启动并行任务</span>
-          <i>↗</i>
-        </button>
+        </section>
+        <section class="orchestrate-view" id="orchestrateView" hidden aria-label="并行 Agent 编排">
+          <section class="orchestrate-intro panel"><div><p class="eyebrow">INDEPENDENT RUNS</p><h2>配置独立 Agent</h2><p>这里保留原有的并行任务入口。已有会话桥接与新建 Agent 运行相互独立。</p></div></section>
+          <section class="orchestrate-controls panel">
+            <label>工作目录 <span class="input-row"><input id="workspaceInput" placeholder="选择 Agent 共同工作的目录" /><button class="secondary-button" id="pickWorkspace" type="button">浏览</button></span></label>
+            <label>任务说明<textarea id="task" rows="3" placeholder="描述目标；每个 Agent 会收到角色契约和同一任务。"></textarea></label>
+            <div class="agent-count"><span>Agent 数量</span><div class="stepper"><button id="minusCount" type="button" aria-label="减少 Agent">−</button><strong id="agentCount">4</strong><button id="plusCount" type="button" aria-label="增加 Agent">＋</button></div></div>
+            <button class="primary-button launch-button" id="launchRun" type="button">启动并行任务 <span aria-hidden="true">↗</span></button>
+          </section>
+          <section class="agent-grid" id="agentGrid"></section>
+        </section>
       </section>
-
-      <section class="section-head">
-        <div>
-          <p class="kicker">TEAM CONFIGURATION</p>
-          <h3>Agent 舰队</h3>
-        </div>
-        <p>模型列表来自当前 Codex 运行时；角色预设可以在每个任务前重新分配。</p>
-      </section>
-
-      <section class="agent-grid" id="agentGrid"></section>
-
-      <footer>
-        <span>Massive Agent Desk · v0.1</span>
-        <span id="footerStatus">本地配置尚未保存</span>
-      </footer>
+      <footer class="app-footer"><span>Massive Agent Desk · local-first</span><span id="footerStatus" aria-live="polite">正在准备本地工作区</span></footer>
     </main>
-    <template id="agentCardTemplate">
-      <article class="agent-card">
-        <div class="card-glow"></div>
-        <div class="card-top">
-          <span class="agent-index"></span>
-          <span class="role-badge"></span>
-          <span class="agent-status">READY</span>
-        </div>
-        <select class="role-select" aria-label="Agent 角色"></select>
-        <p class="role-summary"></p>
-        <div class="selectors">
-          <label>MODEL<select class="model-select"></select></label>
-          <label>REASONING<select class="effort-select"></select></label>
-        </div>
-        <div class="output-wrap">
-          <div class="output-head"><span>LIVE OUTPUT</span><button class="stop-button" disabled>STOP</button></div>
-          <pre class="agent-output">等待任务…</pre>
-        </div>
-      </article>
-    </template>
+    <template id="agentCardTemplate"><article class="agent-card"><div class="agent-card-head"><span class="agent-index"></span><span class="role-badge"></span><span class="agent-status">READY</span></div><label>角色<select class="role-select" aria-label="Agent 角色"></select></label><p class="role-summary"></p><div class="selectors"><label>模型<select class="model-select"></select></label><label>推理<select class="effort-select"></select></label></div><div class="output-wrap"><div class="output-head"><span>运行输出</span><button class="text-button stop-button" disabled>停止</button></div><pre class="agent-output">等待任务…</pre></div></article></template>
     <script type="module" src="./app.js"></script>
   </body>
 </html>

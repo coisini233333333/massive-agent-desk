@@ -57,18 +57,20 @@ export class CodexAppServerClient extends EventEmitter {
     this.process = child;
 
     const lines = readline.createInterface({ input: this.process.stdout });
-    lines.on('line', line => this.#handleLine(line));
-    this.process.stderr.on('data', chunk => this.emit('diagnostic', chunk.toString()));
+    lines.on('line', line => { if (this.process === child) this.#handleLine(line); });
+    child.stderr.on('data', chunk => { if (this.process === child) this.emit('diagnostic', chunk.toString()); });
     child.on('error', error => {
       if (this.process !== child) return;
       this.ready = false;
       this.process = null;
+      this.threadToRun.clear(); this.activeTurns.clear();
       this.#failAll(error);
       this.emit('exit', null);
     });
     child.on('exit', code => {
       if (this.process !== child) return;
       this.ready = false;
+      this.threadToRun.clear(); this.activeTurns.clear();
       this.#failAll(new Error(`Codex app-server 已退出（code ${code ?? 'unknown'}）。`));
       this.process = null;
       this.emit('exit', code);
@@ -76,6 +78,7 @@ export class CodexAppServerClient extends EventEmitter {
 
     try {
       await this.request('initialize', {
+        capabilities: { experimentalApi: true, requiredHumanApproval: true },
         clientInfo: {
           name: 'massive_agent_desk',
           title: 'Massive Agent Desk',
@@ -119,6 +122,11 @@ export class CodexAppServerClient extends EventEmitter {
     this.#send({ method, params });
   }
 
+  replyServerRequest(id, result) {
+    if (!this.process?.stdin?.writable) throw new Error('审批连接已断开，请核对原会话。');
+    this.#send({ id, result });
+  }
+
   async listModels() {
     await this.connect();
     const result = await this.request('model/list', { limit: 50, includeHidden: false });
@@ -146,10 +154,10 @@ export class CodexAppServerClient extends EventEmitter {
   // validate the human-confirmed draft before calling it.
   async continueThread({ threadId, runId, prompt }) {
     if (!threadId || !runId || typeof prompt !== 'string' || !prompt.trim()) {
-      throw new Error('续接需要明确的 threadId、runId 和消息原文。');
+      throw Object.assign(new Error('续接需要明确的 threadId、runId 和消息原文。'), { deliveryStatus: 'not-sent' });
     }
     if (this.threadToRun.has(threadId) || this.activeTurns.has(runId)) {
-      throw new Error('该会话或运行已有本客户端的活动回合。');
+      throw Object.assign(new Error('该会话或运行已有本客户端的活动回合。'), { deliveryStatus: 'not-sent' });
     }
     // Reserve before awaiting I/O so concurrent callers cannot dispatch twice.
     this.threadToRun.set(threadId, runId);
@@ -178,6 +186,7 @@ export class CodexAppServerClient extends EventEmitter {
         if (this.activeTurns.has(runId)) this.activeTurns.set(runId, { threadId, outcomeUnknown: true });
         error.deliveryStatus = 'unknown';
       } else {
+        error.deliveryStatus = 'not-sent';
         this.threadToRun.delete(threadId);
         this.activeTurns.delete(runId);
       }
@@ -207,6 +216,8 @@ export class CodexAppServerClient extends EventEmitter {
     this.activeTurns.set(run.runId, { threadId, turnId });
     return { runId: run.runId, threadId, turnId };
   }
+
+  isThreadBusy(threadId) { return this.threadToRun.has(threadId); }
 
   async interrupt(runId) {
     const active = this.activeTurns.get(runId);

@@ -4,12 +4,25 @@
 
 ## 当前结论
 
-**P0 尚未通过。** Codex 完整双回合联调已通过，验证稳定 ID 续接、准确助手回复及模型/推理强度保留；Antigravity 原会话派工和真人确认来源尚未测通。没有可交付 APK。
+**P0 尚未通过。** Codex 双回合续接及桌面控制器到真实 Codex 的持久派工联调已通过。桌面已有会话入口、主进程独立审阅窗口和部分审批已实现；Antigravity 原会话派工、其真人确认来源、Android APK 与端到端真机链路尚未验证。
+
+## 本轮桌面集成
+
+- `BridgeController` 通过 SQLite 保存目录与已有会话的稳定绑定，核对会话真实 cwd 后才绑定。草案正文、修订版和可见 ticket 在同一事务提交；注入 ticket 失败时，原 queued 版本仍保留，不留下不可见的新版本。
+- Electron 主进程取得实际应用单实例锁后才打开数据库并执行恢复。renderer 不接收或签发确认能力；只能请求打开独立的主进程审阅窗口。窗口展示项目、目标会话、版本、摘要与完整原文，关闭即取消。它证明本地 UI 选择的来源，不是生物识别，也不能证明 Antigravity 原对话里的确认者身份。
+- 同命令并发点击只发送一次；同目标忙碌时其它命令保持 queued。客户端明确报告 not-sent 时退回 queued；回执未知则落为 unknown，禁重发。delivered 的含义是 Codex 已接收并返回 turnId，不代表任务完成。
+- `serverRequest` 原文进入待办。命令审批（含声明的 humanCommand 能力）和有对应原始 fileChange 详情的文件审批，可由独立审阅窗口选择本次 accept/decline/cancel，按原 JSON-RPC ID 回包，不扩大未来权限。fileChange 详情按 threadId/turnId/itemId 绑定。已在另一端解决的请求不接受旧窗口答案。显式用户提问等其它请求保留原文但尚未实现作答 UI。
+- 桌面入口采用米白、灰绿、圆角卡片、胶囊按钮及系统字体；保留原有独立 Agent 编排入口。没有复制 DSH-Go 源码或品牌素材。
+- `npm test` 当前 37 项通过；实际 app-server 模型握手通过。`smoke:bridge-host` 使用测试确认回调，把持久草案发往专用测试会话，核对准确助手回复，同 commandId 再次调用返回原 turn 回执；证据 `artifacts/p0-host-smoke.json`。此测试不冒充真人点击。
+- `smoke:review` 在真实 Electron 中验证 50,000 字符全文等值、HTML 按文字显示、未注册决定被拒绝、390px 无横向溢出，以及取消。截图后已调整长文窗的独立滚动区域，使决定按钮始终可见。验收脚本只自动选择取消，绝不自动批准。
+- `smoke:ui:bridge` 使用隔离 userData 和专用测试会话，实际经过 preload/主进程 IPC 读取绑定与历史，验证无效目录报错后可重新检索成功，并保存桌面和 390px 截图；不会发送该截图草案。截图测试退出码为 0。它不是 Android 真机测试。
+
+待完成：真实用户点击后的审批端到端、服务端审批重连回放、unknown 的人工证据核对与解锁、一般用户问题作答、Antigravity 连接与可信来源、持久项目事件/监工交接、多 work 协作、APK、配对通道、锁屏通知和真机测试。不能以桌面截图代替这些验收。
 
 ## 已实现和已验证
 
-- `CodexAppServerClient` 增加分页会话发现、元数据读取、回合读取及 `continueThread` 原会话发送原语。续接只传稳定 `threadId`；`turn/start` 不覆盖模型、推理强度、目录和权限。此原语不构成派工审批，也未暴露为手机或监工可直接调用的端点。
-- 区分服务端主动审批请求与 RPC 回复；即使数字 ID 相同，也不会吞掉请求或代替用户作决定。目前只发出 `serverRequest` 事件，Electron 审批 UI 和回包尚未接入，不能用于真实审批流程。
+- `CodexAppServerClient` 增加分页会话发现、元数据读取、回合读取及 `continueThread` 原会话发送原语。续接只传稳定 `threadId`；`turn/start` 不覆盖模型、推理强度、目录和权限。此原语由桌面控制器在确认后调用，未开放手机或监工端点。
+- 区分服务端主动审批请求与 RPC 回复；即使数字 ID 相同，也不会吞掉请求或代替用户作决定。本轮已接入上述部分桌面审批能力，其余类型不自动作答。
 - 注册待返回请求后再写 stdin，修复同步回包竞态；同一会话并发发送受限；`turn/start` 回执丢失标为 `deliveryStatus=unknown`，单进程内保留发送占位，防止盲重发。该客户端占位尚未与持久登记集成，也无人工核对后的解锁接口，**不能宣称跨崩溃恰好一次**。
 - 连接握手已增加共享 Promise，多个 Agent 首次同时连接时等待同一次初始化；失败初始化会释放子进程，允许显式再次连接，旧子进程迟到的退出事件不影响新连接。新增对应回归测试。
 - 本轮 `npm test`：22 项通过，覆盖客户端、持久登记和原有计划逻辑。真实 `npm run smoke:codex` 复验通过。
@@ -31,16 +44,16 @@ smoke 脚本保留原任务：30 秒仅打印继续观察；通过原进程的 `
 
 ## 持久确认/派工登记原型
 
-`src/main/dispatch-ledger.mjs` 是独立本地 SQLite 模块，尚未接入 Electron IPC、监工或真实发送器：
+`src/main/dispatch-ledger.mjs` 是本地 SQLite 模块，本轮由 `BridgeController` 接入 Electron IPC 和 Codex 发送器；监工与手机端尚未接入：
 
 - 保存项目、目标会话、草案确切全文、修订版和 SHA-256；确认时向可信宿主验证器传入包含 commandId 与确切版本的规范 action 摘要。宿主必须提供真实验证器，本模块不接受模型自报身份来证明真人确认。
 - 确认与待发送登记在同一事务落盘。同 commandId 同内容返回已有回执，不同内容拒绝；同版草案不能用另一个 commandId 再登记一次；证明摘要具有唯一约束，防止同一证明跨派工动作重放。
 - 编辑后旧版 queued 变为 superseded，未确认的旧版不能再确认；sending/unknown 的草案禁止直接编辑。送达回执同内容可重放，不同内容拒绝。
-- 发送占用先落盘为 sending。恢复方法要求宿主注入的独占启动能力验证通过，才将遗留 sending 转为 unknown；打开第二连接不会自动恢复。unknown 不会再次被领取发送。真实 OS 所有权验证器尚未实现，不能把测试中的模拟能力当作真实独占锁。
+- 发送占用先落盘为 sending。恢复方法要求宿主注入的独占启动能力验证通过，才将遗留 sending 转为 unknown；打开第二连接不会自动恢复。unknown 不会再次被领取发送。本轮主进程通过 Electron 单实例锁校验宿主所有权，模块自身不获取该锁；不能把模块测试中的模拟能力当作真实独占锁。
 - 测试使用临时 SQLite 和模拟的可信宿主能力，不包含真实 Antigravity、OS 本人验证、配对设备证据、进程崩溃注入或并行进程压力测试。两连接测试覆盖串行争用场景。
 - 已探测本机 Electron 38.8.6 内置 Node 22.22.0、SQLite 3.50.4，可加载 `node:sqlite`；它仍会给出实验特性警告。
 
-仍需实现宿主独占所有权的实际约束、unknown 的证据核对流程、真实可信确认来源，以及登记到 Codex 发送器的集成。持久本地唯一登记不能单独证明外部系统恰好收到一次；不得把模块单测当作整个 P0 的完成证据。
+宿主应用单实例锁、本地审阅窗口及 Codex 发送器已接入；unknown 的人工核对流程、真实 Antigravity 确认来源仍缺失。持久本地唯一登记不能单独证明外部系统恰好收到一次；不得把模块单测当作整个 P0 的完成证据。
 
 复现命令（在 worktree 内）：
 
@@ -48,9 +61,12 @@ smoke 脚本保留原任务：30 秒仅打印继续观察；通过原进程的 `
 npm test
 npm run smoke:codex
 npm run smoke:bridge-codex
+npm run smoke:bridge-host
+npm run smoke:ui:bridge
+npm run smoke:review
 ```
 
-最后一条会创建专用测试对话并发送两条短消息；provider 自动重试期间可能持续数分钟，需保留其原进程与工具会话句柄。不要仅因观察超时重启任务。Ctrl+C 是操作者显式终止，不能把它产生的中断记成远端失败。
+`smoke:bridge-codex` 创建专用测试对话并发送两条短消息，`smoke:bridge-host` 续接其测试会话；provider 自动重试期间可能持续数分钟，需保留原进程与工具会话句柄，不要仅因观察超时重启。`smoke:review` 故意提交一次未注册决定，`smoke:ui:bridge` 故意检索不存在的测试目录，均会打印一条预期错误来验证拒绝及恢复路径；成功时最后输出 passed 且退出码 0。Ctrl+C 是操作者显式终止，不能把它产生的中断记成远端失败。
 
 本机公开命令和安装路径未发现可用的 Antigravity。已向用户请求安装路径、登录状态及可联调的测试会话。官方文档依据如下，但均不代表本机实测通过：
 
@@ -58,7 +74,7 @@ npm run smoke:bridge-codex
 - [ACP](https://antigravity.google/docs/cli/acp/) 提供 stdio JSON-RPC；尚无证据证明可直接 attach 既有 App 会话。
 - [Remote Control](https://antigravity.google/docs/remote-control/?tab=cli) 支持远程继续活跃会话；第三方桥接读取完整回复及可验证真人确认的能力仍待证明。模型自报“已确认”不得作为用户确认。
 
-下一步把持久登记与宿主确认/发送流程集成；有可用 Antigravity 后验证原会话读取、发消息和可信用户操作来源。关键 P0 条件未证实前，不应把后续桌面核心或 Android 界面标成已完成。
+下一步核验真人操作的桌面闭环；有可用 Antigravity 后验证原会话读取、发消息和可信用户操作来源。关键 P0 条件未证实前，不应把完整桌面核心或 Android 界面标成已完成。
 
 ## 后续界面依据
 

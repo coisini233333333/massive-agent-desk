@@ -31,6 +31,7 @@ test('concurrent callers share one initialization handshake', async () => {
     child.stdout.write(JSON.stringify({ id: initialize.id, result: {} }) + '\n');
     await Promise.all([first, second]);
     assert.equal(messages.filter(m => m.method === 'initialize').length, 1);
+    assert.deepEqual(initialize.params.capabilities, { experimentalApi: true, requiredHumanApproval: true });
     assert.equal(client.ready, true);
   } finally { client.close(); }
 });
@@ -129,5 +130,21 @@ test('lost turn/start receipt reserves the thread and prevents blind resend', as
     await assert.rejects(client.continueThread({ threadId: 'existing', runId: 'retry', prompt: 'text' }), /活动回合/);
     assert.equal(messages.filter(m => m.method === 'turn/start').length, 1);
     assert.equal(client.activeTurns.get('r').outcomeUnknown, true);
+  } finally { client.close(); }
+});
+
+test('a confirmed child exit invalidates only that connection generation busy state', async () => {
+  const replies = { 'thread/resume': () => ({ thread: { id: 'existing', status: { type: 'idle' } } }), 'turn/start': () => ({ turn: { id: 'turn' } }) };
+  const first = fixture(replies); const second = fixture(replies);
+  let attempts = 0;
+  const client = new CodexAppServerClient({ spawnImpl: () => ++attempts === 1 ? first.child : second.child, timeoutMs: 100 });
+  try {
+    await client.continueThread({ threadId: 'existing', runId: 'one', prompt: 'one' });
+    assert.equal(client.isThreadBusy('existing'), true);
+    first.child.emit('exit', 1);
+    assert.equal(client.isThreadBusy('existing'), false);
+    await client.continueThread({ threadId: 'existing', runId: 'two', prompt: 'different approved command' });
+    first.child.stdout.write(JSON.stringify({ method: 'turn/completed', params: { threadId: 'existing', turn: { id: 'old-turn' } } }) + '\n');
+    assert.equal(client.activeTurns.has('two'), true);
   } finally { client.close(); }
 });

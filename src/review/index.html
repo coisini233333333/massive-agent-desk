@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; connect-src 'none'" />
+    <title>审阅</title>
+    <link rel="stylesheet" href="./review.css" />
+  </head>
+  <body>
+    <main class="review-shell" aria-labelledby="title">
+      <header class="review-header">
+        <p class="eyebrow">REVIEW BEFORE ACTION</p>
+        <h1 id="title">正在加载审阅内容</h1>
+        <p class="lead">请逐字核对目标与原文；只有这里列出的决定会被提交。</p>
+      </header>
+      <section class="context-card" aria-label="操作上下文">
+        <dl id="context"></dl>
+      </section>
+      <section class="text-section" aria-labelledby="exactTextLabel">
+        <div class="section-label"><span id="exactTextLabel">确切原文</span><button id="copy" type="button">复制原文</button></div>
+        <pre id="exactText" tabindex="0" aria-live="polite"></pre>
+      </section>
+      <footer class="review-footer" id="choices" aria-label="审阅决定"></footer>
+      <p class="footnote" id="status" aria-live="polite">窗口关闭等同于取消。</p>
+    </main>
+    <script src="./review.js"></script>
+  </body>
+</html>

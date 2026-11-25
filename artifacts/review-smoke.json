@@ -1,0 +1,13 @@
+{
+  "result": "passed",
+  "textLength": 50000,
+  "exactTextPreserved": true,
+  "htmlRenderedAsText": true,
+  "invalidDecisionRejected": true,
+  "mobileWidth": 390,
+  "chosen": "later",
+  "notVerified": [
+    "human identity",
+    "actual approval or dispatch"
+  ]
+}
