@@ -14,6 +14,7 @@
     "smoke:ui": "electron . --smoke",
     "smoke:ui:bridge": "electron . --smoke --bridge-fixture",
     "smoke:review": "electron scripts/review-window-smoke.mjs",
+    "probe:antigravity": "node scripts/probe-antigravity.mjs",
     "validate:skill": "node scripts/validate-skill.mjs skills/design-personal-agent-team"
   },
   "devDependencies": {

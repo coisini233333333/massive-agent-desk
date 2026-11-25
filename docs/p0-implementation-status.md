@@ -6,6 +6,36 @@
 
 **P0 尚未通过。** Codex 双回合续接及桌面控制器到真实 Codex 的持久派工联调已通过。桌面已有会话入口、主进程独立审阅窗口和部分审批已实现；Antigravity 原会话派工、其真人确认来源、Android APK 与端到端真机链路尚未验证。
 
+## Antigravity 实际接口复验与当前阻塞
+
+本轮已从[官方 Windows 安装脚本](https://antigravity.google/cli/install.ps1) 指向的发布清单下载 CLI **1.5.17**，核对 SHA-512 后运行版本与 ACP 帮助。可执行文件位于 worktree 的 `.massive-agent/tools/antigravity/agy.exe`，已被 Git 忽略；未修改全局 PATH，未运行安装脚本的原生环境设置步骤。来源与校验记录见 `artifacts/antigravity-install.json`。
+
+`npm run probe:antigravity` 在隔离配置目录实测 ACP `initialize` 成功，协议版本 1，声明支持 `loadSession` 及会话 list/load/resume。证据：`artifacts/antigravity-capabilities.json`。它只是接口能力发现，尚未载入任何原会话。
+
+`npm run probe:antigravity -- --check-auth` 使用正常配置做只读 `session/list`，实际返回 **-32000 / authentication-required**。证据：`artifacts/antigravity-auth-probe.json`。输出未包含会话标题、内容或认证数据。探针没有发送登录、创建会话、派工、prompt 或审批请求。
+
+当前必须由用户完成本机 Google 登录，并指定可用于联调的原有 Antigravity 项目/会话。已发出所需信息请求。可在用户自己的终端执行：
+
+```powershell
+& 'G:\massive agent exe\.massive-agent\worktrees\mobile-bridge\.massive-agent\tools\antigravity\agy.exe' acp --login
+```
+
+不需要向聊天发送密码、Cookie 或令牌。登录后先复验只读会话接口，再验证指定原会话的稳定 ID、原文读取与确认来源。[官方 resume 文档](https://antigravity.google/docs/cli/commands/resume/)明确 App 导入会复制历史，所以是否仍为要求的原 App 对话必须实际核对。
+
+规划的 P0 原会话验收已因这一外部依赖连续多轮受阻。本轮完成可自主进行的工具准备和只读接口复验后，仍缺少可用登录态与用户选定的原会话；依赖这些证据的后续验收不能推进。
+
+| 规划要求 | 当前证据 | 判断 |
+|---|---|---|
+| 等 idea 文档定稿 | idea 已完成，规划提交 `9aa5d1b`，本轮查询无新修订 | 已完成 |
+| P0 · 手机消息进入 Antigravity 原会话、完整 Google 回复及可信本人确认 | CLI 初始化通过；正常配置列会话返回 authentication-required，未指定原会话 | 外部阻塞，未通过 |
+| P0 · 稳定 ID 续接 Codex，桌面打开并续聊 | Codex 原会话往返、控制器和部分 UI 有证据；桌面真人交互仍未完整验证 | 部分完成 |
+| P1 · 事件、权限、回执与交接持久化，崩溃和回执丢失验收 | 绑定/草案/outbox 与部分审批已有代码及测试；持久项目事件、完整对账和交接仍缺失 | 未通过 |
+| P2 · 两个 work 并行与监工切换 | 未做完整场景 | 未通过 |
+| P3 · 可安装 APK、配对、跨网、锁屏通知和真机验收 | 仅桌面响应式预览；本机未发现 Android 构建工具/真机连接 | 未通过 |
+| P4 · 原会话确认至手机通知的完整闭环、离线和重启 | 未做完整场景 | 未通过 |
+
+目标尚未达到，桌面预览与原型测试不能作为全范围完成证据。
+
 ## 本轮桌面集成
 
 - `BridgeController` 通过 SQLite 保存目录与已有会话的稳定绑定，核对会话真实 cwd 后才绑定。草案正文、修订版和可见 ticket 在同一事务提交；注入 ticket 失败时，原 queued 版本仍保留，不留下不可见的新版本。
@@ -25,7 +55,7 @@
 - 区分服务端主动审批请求与 RPC 回复；即使数字 ID 相同，也不会吞掉请求或代替用户作决定。本轮已接入上述部分桌面审批能力，其余类型不自动作答。
 - 注册待返回请求后再写 stdin，修复同步回包竞态；同一会话并发发送受限；`turn/start` 回执丢失标为 `deliveryStatus=unknown`，单进程内保留发送占位，防止盲重发。该客户端占位尚未与持久登记集成，也无人工核对后的解锁接口，**不能宣称跨崩溃恰好一次**。
 - 连接握手已增加共享 Promise，多个 Agent 首次同时连接时等待同一次初始化；失败初始化会释放子进程，允许显式再次连接，旧子进程迟到的退出事件不影响新连接。新增对应回归测试。
-- 本轮 `npm test`：22 项通过，覆盖客户端、持久登记和原有计划逻辑。真实 `npm run smoke:codex` 复验通过。
+- 初始持久登记阶段 `npm test`：22 项通过；后续桌面集成阶段扩展到上述 37 项。真实 `npm run smoke:codex` 复验通过。
 - 真实 `model/list` 握手返回 10 个模型。
 - 对独立测试会话 `01a213c8-5741-7310-83e1-48cfb78ccc1e` 的 `thread/read` 和 `thread/resume` 实测返回同一 ID，模型均为 `gpt-6.2-sol`，推理强度均为 `xhigh`。证据：`artifacts/p0-codex-attach.json`。没有向正式 idea、work 或 ICML 项目发消息。
 - Codex 桌面工具 `read_thread` 能找到前一个独立测试会话 `01a213c5-ab26-78a2-b9f1-92c21b39b065`；仅证实可发现，不等于已在桌面 UI 打开并续聊。
@@ -68,7 +98,7 @@ npm run smoke:review
 
 `smoke:bridge-codex` 创建专用测试对话并发送两条短消息，`smoke:bridge-host` 续接其测试会话；provider 自动重试期间可能持续数分钟，需保留原进程与工具会话句柄，不要仅因观察超时重启。`smoke:review` 故意提交一次未注册决定，`smoke:ui:bridge` 故意检索不存在的测试目录，均会打印一条预期错误来验证拒绝及恢复路径；成功时最后输出 passed 且退出码 0。Ctrl+C 是操作者显式终止，不能把它产生的中断记成远端失败。
 
-本机公开命令和安装路径未发现可用的 Antigravity。已向用户请求安装路径、登录状态及可联调的测试会话。官方文档依据如下，但均不代表本机实测通过：
+最初未发现 Antigravity 安装；本轮已下载校验 CLI 并完成初始化探针，实际账号访问仍受登录阻塞，详见顶部复验记录。官方接口依据如下；原 App 会话的实际续接仍未通过：
 
 - [Resume](https://antigravity.google/docs/cli/commands/resume/) 支持按 CLI 会话 ID 续接；从 App 导入会复制历史，不能据此认定仍是原 App 对话。
 - [ACP](https://antigravity.google/docs/cli/acp/) 提供 stdio JSON-RPC；尚无证据证明可直接 attach 既有 App 会话。

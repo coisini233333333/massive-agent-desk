@@ -1,0 +1,61 @@
+{
+  "result": "initialize-passed",
+  "protocolVersion": 1,
+  "agentInfo": {
+    "name": "Antigravity ACP Server",
+    "version": "1.5.17"
+  },
+  "agentCapabilities": {
+    "loadSession": true,
+    "load_session": true,
+    "promptCapabilities": {
+      "image": true,
+      "audio": false,
+      "embeddedContext": true
+    },
+    "sessionCapabilities": {
+      "resume": {},
+      "close": {},
+      "load": {},
+      "list": {},
+      "additionalDirectories": {}
+    },
+    "session_capabilities": {
+      "resume": {},
+      "close": {},
+      "load": {},
+      "list": {},
+      "additionalDirectories": {}
+    },
+    "auth": {
+      "logout": {}
+    },
+    "_meta": {
+      "antigravity": {
+        "tier": true,
+        "systemPrompt": {
+          "append": true
+        }
+      }
+    }
+  },
+  "authMethodIds": [
+    "oauth-personal",
+    "oauth-business",
+    "gemini-api-key",
+    "agent-platform"
+  ],
+  "diagnosticChunks": 0,
+  "scope": "normal profile; read-only session/list; conversation contents omitted",
+  "notVerified": [
+    "logged-in account",
+    "load original Antigravity App conversation",
+    "user confirmation provenance",
+    "APK"
+  ],
+  "sessionList": {
+    "result": "rejected",
+    "code": -32000,
+    "reason": "authentication-required"
+  }
+}
