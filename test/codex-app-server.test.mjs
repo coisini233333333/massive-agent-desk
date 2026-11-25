@@ -21,6 +21,40 @@ function fixture(replies = {}) {
   return { client, child, messages };
 }
 
+test('concurrent callers share one initialization handshake', async () => {
+  const { client, child, messages } = fixture({ initialize: () => 'pending' });
+  try {
+    const first = client.connect();
+    const second = client.connect();
+    assert.equal(first, second);
+    const initialize = messages.find(m => m.method === 'initialize');
+    child.stdout.write(JSON.stringify({ id: initialize.id, result: {} }) + '\n');
+    await Promise.all([first, second]);
+    assert.equal(messages.filter(m => m.method === 'initialize').length, 1);
+    assert.equal(client.ready, true);
+  } finally { client.close(); }
+});
+
+test('failed initialization releases the child so an explicit retry can connect', async () => {
+  const first = fixture({ initialize: () => 'pending' });
+  const next = fixture();
+  let attempts = 0;
+  const client = new CodexAppServerClient({ spawnImpl: () => ++attempts === 1 ? first.child : next.child, timeoutMs: 100 });
+  try {
+    const connect = client.connect();
+    const initialize = first.messages.find(m => m.method === 'initialize');
+    first.child.stdout.write(JSON.stringify({ id: initialize.id, error: { code: -1, message: 'handshake failed' } }) + '\n');
+    await assert.rejects(connect, /handshake failed/);
+    assert.equal(client.process, null);
+    await client.connect();
+    assert.equal(client.ready, true);
+    assert.equal(attempts, 2);
+    // A delayed exit from the old child must not tear down the new connection.
+    first.child.emit('exit', 1);
+    assert.equal(client.ready, true);
+  } finally { client.close(); }
+});
+
 test('existing thread retains ID and configuration without creating another thread', async () => {
   const { client, child, messages } = fixture({
     'thread/resume': () => ({ thread: { id: 'existing' }, model: 'original-model', reasoningEffort: 'high' }),

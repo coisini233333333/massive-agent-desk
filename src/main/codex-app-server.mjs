@@ -34,40 +34,66 @@ export class CodexAppServerClient extends EventEmitter {
     this.pending = new Map();
     this.nextId = 1;
     this.ready = false;
+    this.connecting = null;
     this.threadToRun = new Map();
     this.activeTurns = new Map();
   }
 
-  async connect() {
-    if (this.ready) return;
+  connect() {
+    if (this.ready) return Promise.resolve();
+    if (this.connecting) return this.connecting;
+    this.connecting = this.#connect().finally(() => { this.connecting = null; });
+    return this.connecting;
+  }
+
+  async #connect() {
     if (this.process) throw new Error('Codex app-server 正在启动。');
 
-    this.process = this.spawnImpl(this.command, ['app-server'], {
+    const child = this.spawnImpl(this.command, ['app-server'], {
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
       env: process.env
     });
+    this.process = child;
 
     const lines = readline.createInterface({ input: this.process.stdout });
     lines.on('line', line => this.#handleLine(line));
     this.process.stderr.on('data', chunk => this.emit('diagnostic', chunk.toString()));
-    this.process.on('error', error => this.#failAll(error));
-    this.process.on('exit', code => {
+    child.on('error', error => {
+      if (this.process !== child) return;
+      this.ready = false;
+      this.process = null;
+      this.#failAll(error);
+      this.emit('exit', null);
+    });
+    child.on('exit', code => {
+      if (this.process !== child) return;
       this.ready = false;
       this.#failAll(new Error(`Codex app-server 已退出（code ${code ?? 'unknown'}）。`));
       this.process = null;
       this.emit('exit', code);
     });
 
-    await this.request('initialize', {
-      clientInfo: {
-        name: 'massive_agent_desk',
-        title: 'Massive Agent Desk',
-        version: '0.1.0'
+    try {
+      await this.request('initialize', {
+        clientInfo: {
+          name: 'massive_agent_desk',
+          title: 'Massive Agent Desk',
+          version: '0.1.0'
+        }
+      });
+      this.notify('initialized', {});
+      this.ready = true;
+    } catch (error) {
+      if (this.process === child) {
+        this.process = null;
+        this.ready = false;
+        this.#failAll(error);
+        child.kill();
+        this.emit('exit', null);
       }
-    });
-    this.notify('initialized', {});
-    this.ready = true;
+      throw error;
+    }
   }
 
   request(method, params = {}) {

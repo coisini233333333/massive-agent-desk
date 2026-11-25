@@ -1,0 +1,9 @@
+{
+  "threadId": "01a213c8-5741-7310-83e1-48cfb78ccc1e",
+  "turnId": "01a213ce-a9fd-7950-a122-964ff1588edd",
+  "status": "completed",
+  "replies": [
+    "P0-DIAG"
+  ],
+  "note": "Observed turn/completed on original process before reading persisted history"
+}

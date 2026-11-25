@@ -1,13 +1,58 @@
 {
-  "verifiedAt": "2026-11-25T17:38:38.718Z",
-  "threadId": "01a213c8-5741-7310-83e1-48cfb78ccc1e",
-  "firstTurnId": "01a213c8-6015-75b0-a223-294a96ef1eab",
-  "result": "failed",
-  "error": "turn 01a213c8-6015-75b0-a223-294a96ef1eab did not complete\n+ actual - expected\n\n+ undefined\n- 'completed'\n",
+  "verifiedAt": "2026-11-25T17:49:15.858Z",
+  "cwd": "G:\\massive agent exe\\.massive-agent\\worktrees\\mobile-bridge\\.massive-agent\\p0-test-project",
+  "threadId": "01a213d1-a361-7430-9149-b3e69d2e096b",
+  "firstTurnId": "01a213d1-ab83-7920-9fea-9b82f5efd234",
+  "resumedTurnId": "01a213d3-6a43-7133-9244-0ba63640088b",
+  "model": "gpt-6.2-sol",
+  "effort": "xhigh",
+  "runtimeErrors": [
+    {
+      "turnId": "01a213d1-ab83-7920-9fea-9b82f5efd234",
+      "willRetry": true,
+      "code": {
+        "responseStreamDisconnected": {
+          "httpStatusCode": null
+        }
+      }
+    },
+    {
+      "turnId": "01a213d1-ab83-7920-9fea-9b82f5efd234",
+      "willRetry": true,
+      "code": {
+        "responseStreamDisconnected": {
+          "httpStatusCode": null
+        }
+      }
+    },
+    {
+      "turnId": "01a213d1-ab83-7920-9fea-9b82f5efd234",
+      "willRetry": true,
+      "code": {
+        "responseStreamDisconnected": {
+          "httpStatusCode": null
+        }
+      }
+    },
+    {
+      "turnId": "01a213d1-ab83-7920-9fea-9b82f5efd234",
+      "willRetry": true,
+      "code": {
+        "responseStreamDisconnected": {
+          "httpStatusCode": null
+        }
+      }
+    }
+  ],
+  "checks": [
+    "same stable thread ID",
+    "both turns persisted and readable",
+    "no resume configuration overrides"
+  ],
   "notVerified": [
-    "completed model response",
     "Antigravity connection",
     "human confirmation provenance",
+    "desktop UI open/continue",
     "Android APK"
   ]
 }
