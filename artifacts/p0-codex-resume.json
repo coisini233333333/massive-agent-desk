@@ -1,0 +1,13 @@
+{
+  "verifiedAt": "2026-11-25T17:38:38.718Z",
+  "threadId": "01a213c8-5741-7310-83e1-48cfb78ccc1e",
+  "firstTurnId": "01a213c8-6015-75b0-a223-294a96ef1eab",
+  "result": "failed",
+  "error": "turn 01a213c8-6015-75b0-a223-294a96ef1eab did not complete\n+ actual - expected\n\n+ undefined\n- 'completed'\n",
+  "notVerified": [
+    "completed model response",
+    "Antigravity connection",
+    "human confirmation provenance",
+    "Android APK"
+  ]
+}

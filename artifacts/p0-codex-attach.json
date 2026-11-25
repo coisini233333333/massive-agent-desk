@@ -1,0 +1,9 @@
+{
+  "threadId": "01a213c8-5741-7310-83e1-48cfb78ccc1e",
+  "sameId": true,
+  "beforeModel": "gpt-6.2-sol",
+  "resumedModel": "gpt-6.2-sol",
+  "beforeEffort": "xhigh",
+  "resumedEffort": "xhigh",
+  "checks": "resume RPC only; no new turn sent"
+}

@@ -9,6 +9,7 @@
     "start": "electron .",
     "test": "node --test",
     "smoke:codex": "node scripts/codex-app-server-smoke.mjs",
+    "smoke:bridge-codex": "node scripts/codex-thread-resume-smoke.mjs",
     "smoke:ui": "electron . --smoke",
     "validate:skill": "node scripts/validate-skill.mjs skills/design-personal-agent-team"
   },

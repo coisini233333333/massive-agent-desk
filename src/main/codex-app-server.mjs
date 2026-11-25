@@ -73,13 +73,19 @@ export class CodexAppServerClient extends EventEmitter {
   request(method, params = {}) {
     if (!this.process?.stdin?.writable) return Promise.reject(new Error('Codex app-server 未连接。'));
     const id = this.nextId++;
-    this.#send({ method, id, params });
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
         reject(new Error(`${method} 请求超时。`));
       }, this.timeoutMs);
       this.pending.set(id, { resolve, reject, timer });
+      try {
+        this.#send({ method, id, params });
+      } catch (error) {
+        clearTimeout(timer);
+        this.pending.delete(id);
+        reject(error);
+      }
     });
   }
 
@@ -91,6 +97,66 @@ export class CodexAppServerClient extends EventEmitter {
     await this.connect();
     const result = await this.request('model/list', { limit: 50, includeHidden: false });
     return result.data || [];
+  }
+
+  async listThreads({ cwd, cursor, limit = 30 } = {}) {
+    await this.connect();
+    return this.request('thread/list', { cwd, cursor, limit, sortKey: 'updated_at' });
+  }
+
+  async readThread(threadId) {
+    await this.connect();
+    return this.request('thread/read', { threadId, includeTurns: false });
+  }
+
+  async listThreadTurns(threadId, { cursor, limit = 20 } = {}) {
+    await this.connect();
+    return this.request('thread/turns/list', {
+      threadId, cursor, limit, sortDirection: 'desc', itemsView: 'full'
+    });
+  }
+
+  // This is a transport primitive, not a dispatch approval. The bridge must
+  // validate the human-confirmed draft before calling it.
+  async continueThread({ threadId, runId, prompt }) {
+    if (!threadId || !runId || typeof prompt !== 'string' || !prompt.trim()) {
+      throw new Error('续接需要明确的 threadId、runId 和消息原文。');
+    }
+    if (this.threadToRun.has(threadId) || this.activeTurns.has(runId)) {
+      throw new Error('该会话或运行已有本客户端的活动回合。');
+    }
+    // Reserve before awaiting I/O so concurrent callers cannot dispatch twice.
+    this.threadToRun.set(threadId, runId);
+    this.activeTurns.set(runId, { threadId });
+    let turnAttempted = false;
+    try {
+      await this.connect();
+      const resumed = await this.request('thread/resume', { threadId });
+      if (resumed.thread?.id !== threadId) throw new Error('续接返回了不同的会话标识。');
+      if (resumed.thread.status?.type === 'active') throw new Error('原会话正在执行，请等待完成。');
+      // No model, effort, cwd, sandbox or approval overrides: retain the
+      // effective configuration returned by the original thread.
+      turnAttempted = true;
+      const result = await this.request('turn/start', {
+        threadId, input: [{ type: 'text', text: prompt }]
+      });
+      if (!result.turn?.id) throw new Error('Codex 未返回 turn id；发送结果需核对，不能自动重试。');
+      const turnId = result.turn.id;
+      // Completion may arrive before the turn/start response.
+      if (this.activeTurns.has(runId)) this.activeTurns.set(runId, { threadId, turnId });
+      return { threadId, runId, turnId, model: resumed.model, effort: resumed.reasoningEffort };
+    } catch (error) {
+      if (turnAttempted && !error.rpcError) {
+        // A lost response is not proof of non-delivery. Keep the reservation
+        // until completion/reconciliation instead of allowing a blind resend.
+        if (this.activeTurns.has(runId)) this.activeTurns.set(runId, { threadId, outcomeUnknown: true });
+        error.deliveryStatus = 'unknown';
+      } else {
+        this.threadToRun.delete(threadId);
+        this.activeTurns.delete(runId);
+      }
+      throw error;
+    }
   }
 
   async startAgent(run) {
@@ -139,19 +205,33 @@ export class CodexAppServerClient extends EventEmitter {
       return;
     }
 
+    if (message.id !== undefined && message.method) {
+      // Server-originated approvals/tool-input requests are not RPC replies.
+      // Never synthesize a user's decision here.
+      this.emit('serverRequest', message);
+      return;
+    }
     if (message.id !== undefined) {
       const pending = this.pending.get(message.id);
       if (!pending) return;
       clearTimeout(pending.timer);
       this.pending.delete(message.id);
-      if (message.error) pending.reject(new Error(message.error.message || JSON.stringify(message.error)));
+      if (message.error) {
+        const error = new Error(message.error.message || JSON.stringify(message.error));
+        error.rpcError = true;
+        error.code = message.error.code;
+        pending.reject(error);
+      }
       else pending.resolve(message.result || {});
       return;
     }
 
     const threadId = message.params?.threadId || message.params?.thread?.id || message.params?.turn?.threadId;
     const runId = threadId ? this.threadToRun.get(threadId) : undefined;
-    if (runId && message.method === 'turn/completed') this.activeTurns.delete(runId);
+    if (runId && message.method === 'turn/completed') {
+      this.activeTurns.delete(runId);
+      this.threadToRun.delete(threadId);
+    }
     this.emit('event', { ...message, runId, threadId });
   }
 
